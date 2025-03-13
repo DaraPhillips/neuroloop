@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>neuroloop - Edit Profile page</title>
+  <meta name="description" content="">
+  <meta name="keywords" content="">
+
+  <!-- Favicons -->
+  <link href="assets/img/Favicon.png" rel="icon">
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com" rel="preconnect">
+  <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+  <!-- Vendor CSS Files -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+  <link href="assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+
+  <!-- Main CSS File -->
+  <link href="assets/css/main.css" rel="stylesheet">
+
+  <!-- Font Awesome -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js";
+    import { getAuth, signOut, updateEmail, updatePassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+  
+    const firebaseConfig = {
+      apiKey: "AIzaSyDzJreRT1E6-ONXZEsdB1w7-jCo3-6ysiQ",
+      authDomain: "neuroloop-13690.firebaseapp.com",
+      projectId: "neuroloop-13690",
+      storageBucket: "neuroloop-13690.appspot.com",
+      messagingSenderId: "350302613612",
+      appId: "1:350302613612:web:2f01b07d3261df64ef6849",
+    };
+  
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+    const auth = getAuth(app);
+  
+    document.addEventListener("DOMContentLoaded", () => {
+      onAuthStateChanged(auth, async (user) => {
+        if (!user) {
+          // Redirect to login if the user is not authenticated
+          window.location.href = "/login.html";
+          return;
+        }
+  
+        // DOM Elements
+        const saveChangesButton = document.getElementById("saveChangesButton");
+        const removeImageButton = document.getElementById("removeImageButton");
+        const profilePhotoInput = document.getElementById("profilePhoto");
+        const imagePreview = document.getElementById("imagePreview");
+        const imagePreviewContainer = document.getElementById("imagePreviewContainer");
+        const form = document.getElementById("editProfileForm");
+        const logoutButton = document.getElementById("logoutButton");
+  
+        // Check if the required elements are available
+        if (!saveChangesButton || !removeImageButton || !profilePhotoInput || !imagePreview || !form || !imagePreviewContainer) {
+          console.error("Some required elements are missing from the DOM.");
+          return;
+        }
+  
+        // Fetch user data from Firestore
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+  
+          // Fill the form with the user data
+          document.getElementById("firstName").value = userData.firstName || "";
+          document.getElementById("lastName").value = userData.lastName || "";
+          document.getElementById("username").value = userData.username || "";
+          document.getElementById("email").value = user.email; // Email is not editable
+  
+          if (userData.profilePhoto) {
+            imagePreview.src = userData.profilePhoto;
+            imagePreviewContainer.style.display = "block";
+          }
+        }
+  
+        // Profile photo preview functionality
+        profilePhotoInput.addEventListener("change", () => {
+          const file = profilePhotoInput.files[0];
+          if (file && file.type.startsWith("image/")) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              imagePreview.src = e.target.result;
+              imagePreviewContainer.style.display = "block";
+            };
+            reader.readAsDataURL(file);
+          } else {
+            profilePhotoInput.value = "";
+          }
+        });
+  
+        // Remove image functionality
+        removeImageButton.addEventListener("click", () => {
+          profilePhotoInput.value = "";
+          imagePreview.src = "";
+          imagePreviewContainer.style.display = "none";
+        });
+  
+        // Form field validation
+        const validateField = (input) => {
+          const { id, value } = input;
+          const errorElement = document.getElementById(`${id}Error`);
+          let isValid = true;
+  
+          if (id === "firstName" || id === "lastName") {
+            isValid = /^[A-Za-z]*$/.test(value);
+            errorElement.innerText = isValid ? "" : "Name must only contain letters.";
+          } else if (id === "email" || id === "newEmail") {
+            isValid = value === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+            errorElement.innerText = isValid ? "" : "Please enter a valid email address.";
+          } else if (id === "username") {
+            isValid = value === "" || /^[A-Za-z0-9]*$/.test(value);
+            errorElement.innerText = isValid ? "" : "Username must only contain letters and numbers.";
+          } else if (id === "password" || id === "newPassword") {
+            isValid = value === "" || /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(value);
+            errorElement.innerText = isValid
+              ? ""
+              : "Password must be at least 8 characters, including an uppercase letter, a number, and a special character.";
+          }
+  
+          if (!isValid) {
+            input.classList.add("is-invalid");
+            input.classList.remove("is-valid");
+          } else {
+            input.classList.remove("is-invalid");
+            input.classList.add("is-valid");
+          }
+  
+          return isValid;
+        };
+  
+        form.addEventListener("input", (e) => {
+          if (e.target.tagName === "INPUT") validateField(e.target);
+        });
+  
+        // Save changes button click
+        saveChangesButton.addEventListener("click", (event) => {
+          event.preventDefault(); // Prevent form submission
+          const confirmationModal = new bootstrap.Modal(document.getElementById("confirmationModal"));
+          confirmationModal.show();
+        });
+  
+        // Confirm save changes action
+        document.getElementById("confirmSaveChanges")?.addEventListener("click", async () => {
+          const isValidForm = Array.from(form.elements)
+            .filter((el) => el.tagName === "INPUT")
+            .every(validateField);
+  
+          if (isValidForm) {
+            const firstName = document.getElementById("firstName").value;
+            const lastName = document.getElementById("lastName").value;
+            const email = document.getElementById("newEmail").value;
+            const newPassword = document.getElementById("newPassword").value;
+            const username = document.getElementById("username").value;
+            const profilePhoto = document.getElementById("profilePhoto").files[0];
+  
+            try {
+              // Update email if changed
+              const user = auth.currentUser;
+              if (email && email !== user.email) {
+                await updateEmail(user, email);
+                console.log("Email updated successfully.");
+              }
+  
+              // Update password if provided
+              if (newPassword) {
+                await updatePassword(user, newPassword);
+                console.log("Password updated successfully.");
+              }
+  
+              let photoURL = null;
+              if (profilePhoto) {
+                const storageRef = ref(storage, `gs://neuroloop-13690.firebasestorage.app/profile_photos/${user.uid}/${profilePhoto.name}`);
+                await uploadBytes(storageRef, profilePhoto);
+                photoURL = await getDownloadURL(storageRef);
+              }
+  
+              const userData = {
+                ...(firstName && { firstName }),
+                ...(lastName && { lastName }),
+                ...(username && { username }),
+                ...(photoURL && { profilePhoto: photoURL }),
+                updatedAt: new Date().toISOString(),
+              };
+  
+              await setDoc(doc(db, "users", user.uid), userData, { merge: true });
+              alert("Changes saved successfully.");
+  
+              // Close the modal after saving changes
+              const confirmationModal = new bootstrap.Modal(document.getElementById("confirmationModal"));
+              confirmationModal.hide();
+            } catch (err) {
+              console.error("Error saving changes:", err);
+              alert("An error occurred while saving changes. Please try again.");
+            }
+          }
+        });
+  
+        // Logout functionality
+        logoutButton?.addEventListener("click", async () => {
+          try {
+            await signOut(auth);
+            console.log("User has been logged out successfully.");
+            window.location.href = "/login.html";
+          } catch (error) {
+            console.error("Error during logout:", error);
+            alert("An error occurred while logging out. Please try again.");
+          }
+        });
+      });
+    });
+  </script>  
+  
+</head>
+
+<body class="profile">
+
+  <header id="header" class="header d-flex align-items-center fixed-top">
+    <div class="container-fluid container-xl position-relative d-flex align-items-center">
+
+      <a href="index.html" class="logo d-flex align-items-center me-auto">
+        <div class="logo-container">
+          <img src="/assets/img/logo4.svg" alt="Neuroloop-Logo" class="logo-image">
+        </div>
+      </a>
+
+      <nav id="navmenu" class="navmenu">
+        <ul>
+          <li><a href="/index.html">Home</a></li>
+          <li class="dropdown"><a href="#"><span>About</span></a>
+            <ul>
+              <li><a href="#">Habits</a></li>
+              <li><a href="#">The Brain</a></li>
+            </ul>
+          </li>
+          <li><a href="#team">Team</a></li>
+          <li><a href="#contact">Contact</a></li>
+        </ul>
+        <i class="mobile-nav-toggle d-xl-none bi bi-list"></i>
+      </nav>
+
+      <a id="logoutButton" class="btn-getstarted" href="/login.html">Log out</a>
+
+
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="page-title dark-background">
+      <div class="heading">
+        <div class="container">
+          <div class="row d-flex justify-content-center text-center">
+          </div>
+        </div>
+      </div>
+      <nav class="breadcrumbs">
+        <div class="container">
+          <ol>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="/profile.html">Profile</a></li>
+            <li class="current">Edit Profile</li>
+          </ol>
+        </div>
+      </nav>
+    </div>
+
+  <main>
+  <section id="edit-profile" class="edit-profile-section py-5 bg-light">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-lg-6 mx-auto">
+        <div class="card custom-shadow border-0">
+          <div class="card-body custom-padding">
+            <h1 class="text-center mb-4">Edit Profile</h1>
+            <form id="editProfileForm">
+              <div class="mb-3">
+                <label for="firstName" class="form-label">First Name</label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="fa fa-user"></i></span>
+                  <input type="text" class="form-control" id="firstName" name="firstName" placeholder="Enter your first name" autocomplete="given-name">
+                </div>
+                <div id="firstNameError" class="invalid-feedback" style="display:block; color: #AC4A4A;"></div>
+              </div>
+
+              <div class="mb-3">
+                <label for="lastName" class="form-label">Last Name</label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="fa fa-user"></i></span>
+                  <input type="text" class="form-control" id="lastName" name="lastName" placeholder="Enter your last name" autocomplete="family-name">
+                </div>
+                <div id="lastNameError" class="invalid-feedback" style="display:block; color: #AC4A4A;"></div>
+              </div>
+
+              <div class="mb-3">
+                <label for="email" class="form-label">Email</label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="fa fa-envelope"></i></span>
+                  <input type="email" class="form-control" id="email" name="email" placeholder="Enter your email" autocomplete="email" readonly>
+                </div>
+                <div id="emailError" class="invalid-feedback" style="display:block; color: #AC4A4A;"></div>
+              </div>
+
+              <div class="mb-3">
+                <label for="username" class="form-label">Username</label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="fa fa-user"></i></span>
+                  <input type="text" class="form-control" id="username" name="username" placeholder="Choose a username" autocomplete="username">
+                </div>
+                <div id="usernameError" class="invalid-feedback" style="display:block; color: #AC4A4A;"></div>
+              </div>
+
+              <div class="mb-3">
+                <label for="profilePhoto" class="form-label">Profile Photo</label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="fa fa-image"></i></span>
+                  <input type="file" class="form-control" id="profilePhoto" accept="image/*">
+                </div>
+                <div id="imagePreviewContainer" class="mt-3" style="display: none;">
+                  <img id="imagePreview" src="" alt="Profile Preview" class="img-fluid rounded" style="max-height: 200px;">
+                  <button type="button" class="btn btn-danger mt-2" id="removeImageButton">Remove Image</button>
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label for="newEmail" class="form-label">New Email (optional)</label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="fa fa-envelope"></i></span>
+                  <input type="email" class="form-control" id="newEmail" name="newEmail" placeholder="Enter a new email" autocomplete="email">
+                </div>
+                <div id="newEmailError" class="invalid-feedback" style="display:block; color: #AC4A4A;"></div>
+              </div>
+
+              <div class="mb-3">
+                <label for="newPassword" class="form-label">New Password (optional)</label>
+                <div class="input-group">
+                  <span class="input-group-text"><i class="fa fa-lock"></i></span>
+                  <input type="password" class="form-control" id="newPassword" name="newPassword" placeholder="Enter a new password" autocomplete="new-password">
+                  <span class="input-group-text toggle-password" data-target="newPassword" style="cursor: pointer;">
+                    <i class="fa fa-eye"></i>
+                  </span>
+                </div>
+                <div id="newPasswordError" class="invalid-feedback" style="display:block; color: #AC4A4A;"></div>
+              </div>
+
+              <button type="submit" class="btn btn-primary w-100" id="saveChangesButton">Save Changes</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Modal -->
+<div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="confirmationModalLabel">Confirm Save Changes</h5>
+      </div>
+      <div class="modal-body">
+        Are you sure you want to save your changes?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="noButton" data-bs-dismiss="modal">No</button>
+        <button type="button" id="confirmSaveChanges" class="btn btn-primary">Yes</button>
+      </div>
+    </div>
+  </div>
+</div>
+  <!--Modal end -->
+
+  <!-- Footer Start -->
+  <footer id="footer" class="footer py-5 bg-dark text-white">
+    <div class="container">
+      <div class="row justify-content-start align-items-start">
+        <!-- Left Column with Logo -->
+        <div class="col-md-3 text-start">
+          <div class="footer-logo mb-4">
+            <img src="assets/img/logo4.svg" alt="Logo" class="img-fluid" style="max-width: 150px;">
+          </div>
+        </div>
+  
+        <!-- Column 1 -->
+        <div class="col-md-3 text-start">
+          <h5>About</h5>
+          <ul class="list-unstyled">
+            <li class="mb-2"><a href="#" class="text-white text-decoration-none">Link 1</a></li>
+            <li class="mb-2"><a href="#" class="text-white text-decoration-none">Link 2</a></li>
+            <li class="mb-2"><a href="#" class="text-white text-decoration-none">Link 3</a></li>
+          </ul>
+        </div>
+  
+        <!-- Column 2 -->
+        <div class="col-md-3 text-start">
+          <h5>Products</h5>
+          <ul class="list-unstyled">
+            <li class="mb-2"><a href="#" class="text-white text-decoration-none">neuroloop</a></li>
+          </ul>
+        </div>
+  
+        <!-- Column 3 -->
+        <div class="col-md-3 text-start">
+          <h5>Get the App</h5>
+          <ul class="list-unstyled">
+            <li class="mb-2">
+              <a href="https://www.meta.com/ie/?srsltid=AfmBOorShwVop8O2SM_SsbMM8P80lrKVApmh02RB_lBJMG5yODw61u53">
+                <img src="assets/img/metaWhite.svg" alt="Meta Logo" class="img-fluid" style="max-width: 150px;">
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </footer>
+  <!-- Footer End -->
+
+  <!-- Password visibility -->
+  <script>
+    document.querySelectorAll('.toggle-password').forEach(function (toggleButton) {
+      toggleButton.addEventListener('click', function () {
+        const targetInputId = this.getAttribute('data-target');
+        const passwordInput = document.getElementById(targetInputId);
+        const toggleIcon = this.querySelector('i');
+  
+        // Toggle the type attribute
+        if (passwordInput.type === 'password') {
+          passwordInput.type = 'text';
+          toggleIcon.classList.remove('fa-eye');
+          toggleIcon.classList.add('fa-eye-slash');
+        } else {
+          passwordInput.type = 'password';
+          toggleIcon.classList.remove('fa-eye-slash');
+          toggleIcon.classList.add('fa-eye');
+        }
+      });
+    });
+  </script>
+  
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Scroll Top -->
+  <a href="#" id="scroll-top" class="scroll-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
+  
+  <!-- Vendor JS Files -->
+  <script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  <script src="assets/vendor/aos/aos.js"></script>
+  <script src="assets/vendor/glightbox/js/glightbox.min.js"></script>
+  <script src="assets/vendor/swiper/swiper-bundle.min.js"></script>
+  <script src="assets/vendor/imagesloaded/imagesloaded.pkgd.min.js"></script>
+  <script src="assets/vendor/isotope-layout/isotope.pkgd.min.js"></script>
+  
+  <!-- Main JS File -->
+  <script src="assets/js/main.js"></script>
+  
+  <script src="https://cdn.jsdelivr.net/gh/greentfrapp/pocoloco@minigl/minigl.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+</body>
+
+</html>
+
+ <!-- Working update - without email** -->
+

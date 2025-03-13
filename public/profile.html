@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>neuroloop</title>
+  <meta name="description" content="">
+  <meta name="keywords" content="">
+
+  <!-- Neuroloop Favicon -->
+  <link href="assets/img/Favicon.png" rel="icon">
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com" rel="preconnect">
+  <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
+
+  <!-- Vendor CSS Files -->
+  <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <link href="assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
+  <link href="assets/vendor/aos/aos.css" rel="stylesheet">
+  <link href="assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet">
+  <link href="assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet">
+
+  <!-- Main CSS File -->
+  <link href="assets/css/main.css" rel="stylesheet">
+
+  <script type="module">
+    // Import Firebase modules
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+  
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyDzJreRT1E6-ONXZEsdB1w7-jCo3-6ysiQ",
+      authDomain: "neuroloop-13690.firebaseapp.com",
+      projectId: "neuroloop-13690",
+      storageBucket: "neuroloop-13690.appspot.com",
+      messagingSenderId: "350302613612",
+      appId: "1:350302613612:web:2f01b07d3261df64ef6849",
+    };
+  
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+  
+    // Monitor authentication state
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          // Reference to user's Firestore document
+          const userDocRef = doc(db, "users", user.uid);
+          const userDoc = await getDoc(userDocRef);
+  
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+  
+            // Retrieve and set the user's first name
+            const firstName = userData.firstName || "User"; // Fallback to "User" if not set
+            document.getElementById("profileName").textContent = firstName;
+  
+            // Retrieve and set the user's profile photo
+            const profilePhotoUrl = userData.profilePhoto || "/assets/img/avatar2.svg";
+            document.getElementById("profilePhoto").src = profilePhotoUrl;
+  
+            console.log("User data retrieved:", userData);
+          } else {
+            console.error("No document found for the current user!");
+          }
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+        }
+      } else {
+        // Redirect to login page if the user is not authenticated
+        window.location.href = "/login.html";
+      }
+    });
+
+    // Log out function
+    const logoutButton = document.getElementById('logoutBtn');
+    if (logoutButton) {
+      logoutButton.addEventListener('click', async (event) => {
+        event.preventDefault();
+        try {
+          await signOut(auth);
+          console.log("User signed out successfully.");
+          window.location.href = "/login.html"; // Redirect after sign-out
+        } catch (error) {
+          console.error("Error signing out:", error);
+        }
+      });
+    }
+  </script>
+
+</head>
+
+<body class="profile">
+
+  <header id="header" class="header d-flex align-items-center fixed-top">
+    <div class="container-fluid container-xl position-relative d-flex align-items-center">
+
+      <a href="index.html" class="logo d-flex align-items-center me-auto">
+        <div class="logo-container">
+          <img src="/assets/img/logo4.svg" alt="Neuroloop-Logo" class="logo-image">
+        </div>
+      </a>
+
+      <nav id="navmenu" class="navmenu">
+        <ul>
+          <li><a href="/index.html">Home</a></li>
+          <li class="dropdown"><a href="#"><span>About</span></a>
+            <ul>
+              <li><a href="#">Habits</a></li>
+              <li><a href="#">The Brain</a></li>
+              <li><a href="#">Dropdown 3</a></li>
+              <li><a href="#">Dropdown 4</a></li>
+            </ul>
+          </li>
+          <li><a href="#team">Team</a></li>
+          <li><a href="#contact">Contact</a></li>
+        </ul>
+        <i class="mobile-nav-toggle d-xl-none bi bi-list"></i>
+      </nav>
+
+      <!-- Updated Log Out Button with ID -->
+      <a id="logoutBtn" class="btn-getstarted" href="#">Log out</a>
+
+    </div>
+  </header>
+
+  <!-- Breadcrumb -->
+  <div class="page-title dark-background">
+    <div class="heading">
+      <div class="container">
+        <div class="row d-flex justify-content-center text-center">
+        </div>
+      </div>
+    </div>
+    <nav class="breadcrumbs">
+      <div class="container">
+        <ol>
+          <li><a href="index.html">Home</a></li>
+          <li class="current">Profile</li>
+        </ol>
+      </div>
+    </nav>
+  </div>
+
+  <!-- Profile Content -->
+  <div class="container py-5">
+    <div class="row mb-4">
+      <div class="col-md-4">
+        <div class="profile-card p-3 text-center">
+          <h1>Welcome back, <span class="user-firstName" id="profileName"></span>.</h1>
+          <img id="profilePhoto" src="/assets/img/avatar2.svg" alt="User Profile"
+               class="rounded-circle mb-3" style="width: 12.5em; height: 12.5em;">
+          <div class="container">
+          </div>
+          <button class="btn btn-primary btn-sm"><a href="/editProfile.html">Edit Profile</a></button>
+        </div>
+      </div>
+      <div class="col-md-8">
+        <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="overview-tab" data-bs-toggle="pill" data-bs-target="#overview"
+                    type="button" role="tab">Overview</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="settings-tab" data-bs-toggle="pill" data-bs-target="#settings"
+                    type="button" role="tab">Settings</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="activity-tab" data-bs-toggle="pill" data-bs-target="#activity"
+                    type="button" role="tab">Activity</button>
+          </li>
+        </ul>
+        <div class="tab-content" id="pills-tabContent">
+          <div class="tab-pane fade show active" id="overview" role="tabpanel">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <div class="widget">
+                  <h5>Widget 1</h5>
+                  <p>Some content here...</p>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="widget">
+                  <h5>Widget 2</h5>
+                  <p>Some content here...</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="tab-pane fade" id="settings" role="tabpanel">
+            <div class="widget">
+              <h5>Settings</h5>
+              <p>Settings content...</p>
+            </div>
+          </div>
+          <div class="tab-pane fade" id="activity" role="tabpanel">
+            <div class="widget">
+              <h5>Activity</h5>
+              <p>Activity log here...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer id="footer" class="footer py-5 bg-dark text-white">
+    <div class="container">
+      <div class="row justify-content-start align-items-start">
+        <div class="col-md-3 text-start">
+          <div class="footer-logo mb-4">
+            <img src="assets/img/logo4.svg" alt="Logo" class="img-fluid" style="max-width: 150px;">
+          </div>
+        </div>
+        <div class="col-md-3 text-start">
+          <h5>About</h5>
+          <ul class="list-unstyled">
+            <li><a href="#" class="text-white text-decoration-none">Link 1</a></li>
+            <li><a href="#" class="text-white text-decoration-none">Link 2</a></li>
+            <li><a href="#" class="text-white text-decoration-none">Link 3</a></li>
+          </ul>
+        </div>
+        <div class="col-md-3 text-start">
+          <h5>Products</h5>
+          <ul class="list-unstyled">
+            <li><a href="#" class="text-white text-decoration-none">neuroloop</a></li>
+          </ul>
+        </div>
+        <div class="col-md-3 text-start">
+          <h5>Get the App</h5>
+          <ul class="list-unstyled">
+            <li>
+              <a href="https://www.meta.com/ie/?srsltid=AfmBOorShwVop8O2SM_SsbMM8P80lrKVApmh02RB_lBJMG5yODw61u53">
+                <img src="assets/img/metaWhite.svg" alt="Meta Logo" class="img-fluid" style="max-width: 150px;">
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Scroll Top -->
+  <a href="#" id="scroll-top" class="scroll-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
+
+  <!-- Vendor JS Files -->
+  <script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  <script src="assets/vendor/aos/aos.js"></script>
+  <script src="assets/vendor/glightbox/js/glightbox.min.js"></script>
+  <script src="assets/vendor/swiper/swiper-bundle.min.js"></script>
+  <script src="assets/vendor/imagesloaded/imagesloaded.pkgd.min.js"></script>
+  <script src="assets/vendor/isotope-layout/isotope.pkgd.min.js"></script>
+
+  <!-- Main JS File -->
+  <script src="assets/js/main.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/gh/greentfrapp/pocoloco@minigl/minigl.js"></script>
+
+</body>
+
+</html>
